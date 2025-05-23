@@ -29,7 +29,7 @@ python = "^3.13"
 
 [tool.poetry.group.dev.dependencies]
 wheel = "^0.41.0"
-pre-commit = "^2.21.0"
+pre-commit = "^4.2.0"
 
 [tool.ruff]
 line-length = 79
