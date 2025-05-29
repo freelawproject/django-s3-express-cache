@@ -1,0 +1,8 @@
+version = 1
+revision = 2
+requires-python = ">=3.13, <4"
+
+[[package]]
+name = "project-name"
+version = "0.0.1"
+source = { editable = "." }
