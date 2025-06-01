@@ -5,9 +5,9 @@ requires = [
 ]
 
 [project]
-name = "{{PROJECT_NAME}}"
+name = "django-s3-express-cache"
 version = "0.0.1"
-description = "{{PROJECT_DESCRIPTION}}"
+description = "django-s3-express-cache"
 authors = [{ name = "Free Law Project", email = "info@free.law" }]
 requires-python = ">=3.13"
 readme = "README.md"
@@ -28,12 +28,16 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+dependencies = [
+  "Django>=5.0",
+  "boto3>=1.37.20"
+]
 
-urls.Repository = "https://github.com/freelawproject/{{PROJECT_NAME}}"
+urls.Repository = "https://github.com/freelawproject/django-s3-express-cache"
 urls."Organisation Homepage" = "https://free.law/"
 
 [tool.setuptools]
-packages = [ "project_name" ]
+packages = [ "django_s3_express_cache" ]
 
 [tool.ruff]
 line-length = 79
