@@ -50,8 +50,19 @@ class S3ExpressCacheBackend(BaseCache):
         except self.client.exceptions.NoSuchKey:
             return False
 
-        expiration_timestamp = struct.unpack("d", response["Body"].read(amt=8))[0]
+        expiration_timestamp = struct.unpack(
+            "d", response["Body"].read(amt=8)
+        )[0]
         return expiration_timestamp > datetime.now().timestamp()
+
+    def add(self, raw_key, value, timeout=None, version=None):
+        """
+        Adds a new item to the cache if it doesn't already exist.
+        """
+        if self.has_key(raw_key, version=version):
+            return False
+        self.set(raw_key, value, timeout, version)
+        return True
 
     def get(self, raw_key, default=None, version=None):
         """
