@@ -1,6 +1,7 @@
 import pickle
 import struct
 import time
+from datetime import datetime
 
 import boto3
 from django.core.cache.backends.base import DEFAULT_TIMEOUT, BaseCache
@@ -38,3 +39,43 @@ class S3ExpressCacheBackend(BaseCache):
 
         content = struct.pack("d", expiration_time) + pickle.dumps(value)
         self.client.put_object(Bucket=self.bucket_name, Key=key, Body=content)
+
+    def get(self, raw_key, default=None, version=None):
+        """
+        Retrieves an item from the cache, returning a default
+        if expired or not found.
+        """
+        key = self.make_key(raw_key, version)
+        try:
+            response = self.client.get_object(Bucket=self.bucket_name, Key=key)
+        except self.client.exceptions.NoSuchKey:
+            return default
+
+        # Initialize a bytearray to store the cached object's content after
+        # stripping the expiration timestamp.
+        cached_object = bytearray()
+
+        # Iterate over chunks of the S3 object's body.
+        # The first 8 bytes (chunk_size=8) are expected to be the expiration timestamp.
+        for i, chunk in enumerate(response["Body"].iter_chunks(chunk_size=8)):
+            if not i:
+                # For the first chunk, unpack the 8 bytes to get the expiration
+                # timestamp.
+                expiration_timestamp = struct.unpack("d", chunk)[0]
+                # If the current time is past the expiration, the item is expired,
+                # so return the default value.
+                if datetime.now().timestamp() > expiration_timestamp:
+                    return default
+                # Continue to the next chunk (which will be the actual data)
+                continue
+            cached_object.extend(chunk)
+
+        # After processing all chunks, if cached_object is empty, it means
+        # there was no actual cached data (only an expiration timestamp or an
+        # empty object). In this case, return the default value.
+        if not cached_object:
+            return default
+
+        # If cached_object contains data, unpickle it to reconstruct the
+        # original value and return it.
+        return pickle.loads(bytes(cached_object))
