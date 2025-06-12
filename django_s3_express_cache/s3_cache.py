@@ -103,3 +103,11 @@ class S3ExpressCacheBackend(BaseCache):
         # If cached_object contains data, unpickle it to reconstruct the
         # original value and return it.
         return pickle.loads(bytes(cached_object))
+
+    def delete(self, raw_key, version=None):
+        """
+        Removes an item from S3 bucket.
+        """
+        key = self.make_key(raw_key, version)
+        self.client.delete_object(Bucket=self.bucket_name, Key=key)
+        return True
