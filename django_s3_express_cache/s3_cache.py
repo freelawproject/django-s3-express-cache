@@ -40,6 +40,19 @@ class S3ExpressCacheBackend(BaseCache):
         content = struct.pack("d", expiration_time) + pickle.dumps(value)
         self.client.put_object(Bucket=self.bucket_name, Key=key, Body=content)
 
+    def has_key(self, raw_key, version=None):
+        """
+        Return True if the key is in the cache and has not expired.
+        """
+        key = self.make_key(raw_key, version)
+        try:
+            response = self.client.get_object(Bucket=self.bucket_name, Key=key)
+        except self.client.exceptions.NoSuchKey:
+            return False
+
+        expiration_timestamp = struct.unpack("d", response["Body"].read(amt=8))[0]
+        return expiration_timestamp > datetime.now().timestamp()
+
     def get(self, raw_key, default=None, version=None):
         """
         Retrieves an item from the cache, returning a default
