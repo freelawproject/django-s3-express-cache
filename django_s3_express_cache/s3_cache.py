@@ -1,10 +1,40 @@
 import pickle
+import re
 import struct
 import time
 from datetime import datetime
 
 import boto3
 from django.core.cache.backends.base import DEFAULT_TIMEOUT, BaseCache
+
+
+def turn_key_into_directory_path(key: str) -> str:
+    """
+    Transforms a cache key into an S3 object path for optimized write
+    performance.
+
+    This method converts keys like 'N-days:actual_key' into 'N-days/actual_key'.
+    This transformation is intended to improve S3 write throughput by
+    distributing objects across different logical prefixes, taking advantage of
+    S3's internal partitioning mechanisms.
+
+    Args:
+        key (str): The full name of the S3 object.
+
+    Returns:
+        str: The transformed S3 object key with a slash and the time-based
+            prefix, or the original key if no transformation is necessary or
+            applicable.
+    """
+    pattern_with_colon = r"^(^\d+-days?):(.*)$"
+
+    # Attempt to match the pattern at the beginning of the S3 object key.
+    match = re.match(pattern_with_colon, key)
+    if not match:
+        return key
+    # If a match is found, extract the prefix and the rest of the key,
+    # then reformat with a slash for S3 partitioning.
+    return f"{match.group(1)}/{match.group(2)}"
 
 
 class S3ExpressCacheBackend(BaseCache):
