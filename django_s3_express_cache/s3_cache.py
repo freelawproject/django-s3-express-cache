@@ -56,6 +56,11 @@ class S3ExpressCacheBackend(BaseCache):
         # then reformat with a slash for S3 partitioning.
         return f"{match.group(1)}/{match.group(2)}"
 
+    def make_and_validate_key(self, key, version=None):
+        """Helper to make and validate keys."""
+        validated_key = super().make_and_validate_key(key, version)
+        return self._key_to_directory_path(validated_key)
+
     def get_backend_timeout(self, timeout=DEFAULT_TIMEOUT):
         """
         Return the timeout value usable by this backend based upon the provided
@@ -87,7 +92,7 @@ class S3ExpressCacheBackend(BaseCache):
         """
         Return True if the key is in the cache and has not expired.
         """
-        key = self.make_key(raw_key, version)
+        key = self.make_and_validate_key(raw_key, version)
         try:
             response = self.client.get_object(Bucket=self.bucket_name, Key=key)
         except self.client.exceptions.NoSuchKey:
@@ -112,7 +117,7 @@ class S3ExpressCacheBackend(BaseCache):
         Retrieves an item from the cache, returning a default
         if expired or not found.
         """
-        key = self.make_key(raw_key, version)
+        key = self.make_and_validate_key(raw_key, version)
         try:
             response = self.client.get_object(Bucket=self.bucket_name, Key=key)
         except self.client.exceptions.NoSuchKey:
@@ -151,5 +156,5 @@ class S3ExpressCacheBackend(BaseCache):
         """
         Removes an item from S3 bucket.
         """
-        key = self.make_key(raw_key, version)
+        key = self.make_and_validate_key(raw_key, version)
         self.client.delete_object(Bucket=self.bucket_name, Key=key)
