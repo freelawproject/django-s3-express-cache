@@ -1,4 +1,5 @@
 import pickle
+import re
 import struct
 import time
 from datetime import datetime
@@ -12,6 +13,48 @@ class S3ExpressCacheBackend(BaseCache):
         super().__init__(params)
         self.bucket_name = bucket
         self.client = boto3.client("s3")
+
+    def validate_key(self, key: str):
+        """
+        Validates the format of a cache key.
+
+        Ensures that the key adheres to a required pattern, specifically
+        starting with a time-based prefix. This is crucial for the internal
+        key-to-path transformation logic.
+        """
+        pattern = r"^\d+-days?[:/]"
+        if re.match(pattern, key) is None:
+            raise ValueError(
+                f"Key '{key}' does not have a valid time-based prefix"
+            )
+
+    def _key_to_directory_path(self, key: str) -> str:
+        """
+        Transforms a cache key into an S3 object path for optimized write
+        performance.
+
+        This method converts keys like 'N-days:actual_key' into 'N-days/actual_key'.
+        This transformation is intended to improve S3 write throughput by
+        distributing objects across different logical prefixes, taking advantage
+        of S3's internal partitioning mechanisms.
+
+        Args:
+            key (str): The full name of the S3 object.
+
+        Returns:
+            str: The transformed S3 object key with a slash and the time-based
+             prefix, or the original key if no transformation is necessary or
+             applicable.
+        """
+        pattern_with_colon = r"^(^\d+-days?):(.*)$"
+
+        # Attempt to match the pattern at the beginning of the S3 object key.
+        match = re.match(pattern_with_colon, key)
+        if not match:
+            return key
+        # If a match is found, extract the prefix and the rest of the key,
+        # then reformat with a slash for S3 partitioning.
+        return f"{match.group(1)}/{match.group(2)}"
 
     def get_backend_timeout(self, timeout=DEFAULT_TIMEOUT):
         """
