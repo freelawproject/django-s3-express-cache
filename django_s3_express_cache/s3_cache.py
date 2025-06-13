@@ -43,6 +43,13 @@ class S3ExpressCacheBackend(BaseCache):
         self.bucket_name = bucket
         self.client = boto3.client("s3")
 
+    def make_key(self, key, version=None):
+        """
+        Generates directory-like keys for storage in S3.
+        """
+        _key = super().make_key(key, version)
+        return turn_key_into_directory_path(_key)
+
     def get_backend_timeout(self, timeout=DEFAULT_TIMEOUT):
         """
         Return the timeout value usable by this backend based upon the provided
