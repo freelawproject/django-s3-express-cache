@@ -97,10 +97,25 @@ class S3ExpressCacheBackend(BaseCache):
 
         The value is serialized using pickle and stored along with its
         expiration time.
+
+        Raises:
+            ValueError: If the provided 'timeout' in days exceeds the maximum
+                        lifespan implied by the key's time-based prefix
+                        (e.g., trying to set a 10-day timeout on a '7-days:'
+                        key)
         """
         key = self.make_and_validate_key(key, version=version)
 
         timeout = self.get_backend_timeout(timeout)
+        # Validate timeout against key's time prefix for non-persistent items
+        if timeout is not None:
+            key_time_prefix = self.parse_time_prefix(key)
+            timeout_in_days = timeout // (24 * 60 * 60)
+            if timeout_in_days > key_time_prefix:
+                raise ValueError(
+                    "The timeout must be less than or equal to the key's time prefix."
+                )
+
         expiration_time = time.time_ns() + timeout * 1e9 if timeout else 0
 
         content = struct.pack("d", expiration_time) + pickle.dumps(value)
