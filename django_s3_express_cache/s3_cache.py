@@ -37,6 +37,35 @@ def turn_key_into_directory_path(key: str) -> str:
     return f"{match.group(1)}/{match.group(2)}"
 
 
+def parse_time_base_prefix(key: str) -> int:
+    """
+    Parses the numeric time component (days) from the cache key's prefix.
+
+    This method expects the key to start with a time-based prefix in the
+    format "N-day(s):" or "N-day(s)/". It extracts the integer value 'N'
+    from this prefix. This numeric value represents the maximum lifespan
+    (in days) of the cached item.
+
+    Args:
+        key (str): The cache key string.
+
+    Raises:
+        ValueError: If the key does not conform to the expected time-based
+            prefix format (e.g., "N-day(s):" or "N-day(s)/").
+
+    Returns:
+        int: The integer value representing the number of days from the
+            prefix.
+    """
+    pattern = r"^(^\d+)-days?[:/](.*)$"
+
+    match = re.match(pattern, key)
+    if not match:
+        raise ValueError("Key does not have a valid time prefix")
+
+    return int(match.group(1))
+
+
 class S3ExpressCacheBackend(BaseCache):
     def __init__(self, bucket, params):
         super().__init__(params)
