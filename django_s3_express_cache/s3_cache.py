@@ -67,6 +67,27 @@ def parse_time_base_prefix(key: str) -> int:
 
 
 class S3ExpressCacheBackend(BaseCache):
+    """
+    A Django cache backend that leverages AWS S3 Express One Zone for
+    high-throughput, low-latency caching.
+
+    This backend stores cache items as objects in a specified S3 Express One
+    Zone bucket. It provides custom key generation to align with S3's best
+    practices for performance, including:
+
+    - Supports Django's versioning and prefix mechanisms.
+    - Transforms time-based key prefixes (e.g., "N-days:key") into
+      directory-like paths(e.g., "N-days/key") to improve object distribution
+      and write throughput for specific access patterns.
+    - Manages cache item expiration by embedding timestamps within the S3
+      object data, supporting both time-limited and persistent cache entries.
+    - Enforces a validation rule ensuring that a cache item's specified
+      `timeout` does not exceed the maximum lifespan implied by its "N-days"
+      key prefix, preventing inconsistencies.
+
+    Expired items are not automatically deleted by this backend.
+    """
+
     def _s3_compatible_key_func(
         self, key: str, key_prefix: str, version: int | None
     ) -> str:
