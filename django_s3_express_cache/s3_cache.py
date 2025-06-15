@@ -67,17 +67,31 @@ def parse_time_base_prefix(key: str) -> int:
 
 
 class S3ExpressCacheBackend(BaseCache):
+    def _s3_compatible_key_func(
+        self, key: str, key_prefix: str, version: int | None
+    ) -> str:
+        """
+        Constructs an S3-compatible cache key by applying versioning and a key prefix.
+        """
+        # Apply versioning to the key if a version is provided.
+        _key = f"{key}_{version}" if version else key
+
+        # Prepend the global key prefix if it exists.
+        # This creates a directory-like structure in S3.
+        return f"{key_prefix}/{_key}" if key_prefix else _key
+
     def __init__(self, bucket, params):
         super().__init__(params)
         self.bucket_name = bucket
         self.client = boto3.client("s3")
+        self.key_func = self._s3_compatible_key_func
 
     def make_key(self, key, version=None):
         """
         Generates directory-like keys for storage in S3.
         """
-        _key = super().make_key(key, version)
-        return turn_key_into_directory_path(_key)
+        _key = turn_key_into_directory_path(key)
+        return super().make_key(_key, version)
 
     def get_backend_timeout(self, timeout=DEFAULT_TIMEOUT):
         """
