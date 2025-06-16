@@ -205,6 +205,9 @@ class S3ExpressCacheBackend(BaseCache):
                 # For the first chunk, unpack the 8 bytes to get the expiration
                 # timestamp.
                 expiration_timestamp = struct.unpack("d", chunk)[0]
+                # If expiration_timestamp is 0, it's a persistent object.
+                if not expiration_timestamp:
+                    continue
                 # If the current time is past the expiration, the item is expired,
                 # so return the default value.
                 if datetime.now().timestamp() > expiration_timestamp:
