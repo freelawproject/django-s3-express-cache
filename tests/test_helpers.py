@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from django.core.cache.backends.base import DEFAULT_TIMEOUT
 
@@ -37,7 +38,8 @@ class TestS3ExpressCacheBackendHelpers(unittest.TestCase):
             with self.subTest(key=key):
                 self.assertEqual(turn_key_into_directory_path(key), expected)
 
-    def test_can_get_backend_timeout(self):
+    @patch("boto3.client")
+    def test_can_get_backend_timeout(self, client_mock):
         """Tests the timeout calculation and handling of special timeout values."""
         test_cases = {
             "Persistent timeout (None)": (None, None),
@@ -88,7 +90,8 @@ class TestS3ExpressCacheBackendHelpers(unittest.TestCase):
             ):
                 parse_time_base_prefix(key)
 
-    def test_can_make_key_with_versioning(self):
+    @patch("boto3.client")
+    def test_can_make_key_with_versioning(self, client_mock):
         """Tests key generation with path transformation and optional versioning."""
         test_cases = {
             "Key without time prefix (no transformation)": (

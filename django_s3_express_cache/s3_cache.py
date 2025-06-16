@@ -104,8 +104,11 @@ class S3ExpressCacheBackend(BaseCache):
     def __init__(self, bucket, params):
         super().__init__(params)
         self.bucket_name = bucket
-        self.client = boto3.client("s3")
         self.key_func = self._s3_compatible_key_func
+
+        self.client = boto3.client("s3")
+        # Use Session-based authentication to mitigate auth latency
+        self.client.create_session(Bucket=self.bucket_name)
 
     def make_key(self, key, version=None):
         """
