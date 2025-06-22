@@ -147,7 +147,7 @@ class S3ExpressCacheBackend(BaseCache):
         timeout = self.get_backend_timeout(timeout)
         # Validate timeout against key's time prefix for non-persistent items
         if timeout is not None:
-            key_time_prefix = self.parse_time_prefix(key)
+            key_time_prefix = parse_time_base_prefix(key)
             timeout_in_days = timeout // (24 * 60 * 60)
             if timeout_in_days > key_time_prefix:
                 raise ValueError(
@@ -172,6 +172,9 @@ class S3ExpressCacheBackend(BaseCache):
         expiration_timestamp = struct.unpack(
             "d", response["Body"].read(amt=8)
         )[0]
+        # If expiration_timestamp is 0, it's a persistent object.
+        if not expiration_timestamp:
+            return True
         return expiration_timestamp > datetime.now().timestamp()
 
     def add(self, raw_key, value, timeout=None, version=None):
