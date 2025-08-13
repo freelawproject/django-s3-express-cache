@@ -204,7 +204,7 @@ class S3ExpressCacheBackend(BaseCache):
         # Iterate over chunks of the S3 object's body.
         # The first 8 bytes (chunk_size=8) are expected to be the expiration timestamp.
         for i, chunk in enumerate(response["Body"].iter_chunks(chunk_size=8)):
-            if not i:
+            if i == 0:
                 # For the first chunk, unpack the 8 bytes to get the expiration
                 # timestamp.
                 expiration_timestamp = struct.unpack("d", chunk)[0]
