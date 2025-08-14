@@ -229,10 +229,16 @@ class S3ExpressCacheBackend(BaseCache):
         # original value and return it.
         return pickle.loads(bytes(cached_object))
 
-    def delete(self, raw_key, version=None):
+    def delete(self, raw_key, version=None) -> bool:
         """
         Removes an item from S3 bucket.
         """
         key = self.make_key(raw_key, version)
+
+        try:
+            self.client.head_object(Bucket=self.bucket_name, Key=key)
+        except self.client.exceptions.NoSuchKey:
+            return False
+
         self.client.delete_object(Bucket=self.bucket_name, Key=key)
         return True
