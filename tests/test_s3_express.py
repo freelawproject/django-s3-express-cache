@@ -4,7 +4,7 @@ import unittest
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, Mock, patch
 
-from django_s3_express_cache.s3_cache import S3ExpressCacheBackend
+from django_s3_express_cache import S3ExpressCacheBackend
 
 
 class TestS3ExpressCacheBackend(unittest.TestCase):

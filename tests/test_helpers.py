@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from django.core.cache.backends.base import DEFAULT_TIMEOUT
 
-from django_s3_express_cache.s3_cache import (
+from django_s3_express_cache import (
     S3ExpressCacheBackend,
     parse_time_base_prefix,
     turn_key_into_directory_path,
