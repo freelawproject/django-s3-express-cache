@@ -82,7 +82,9 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
         # Persistent keys are stored with an expiration time of 0.
         expected_expiration_ns = 0
         expected_content_prefix = struct.pack("d", expected_expiration_ns)
-        expected_body = expected_content_prefix + pickle.dumps(test_value)
+        expected_body = expected_content_prefix + pickle.dumps(
+            test_value, pickle.HIGHEST_PROTOCOL
+        )
 
         self.cache.set(test_key, test_value, timeout=timeout)
 
@@ -109,7 +111,9 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
             fake_date.timestamp() + self.cache.default_timeout * 1e9
         )
         expected_content_prefix = struct.pack("d", expected_expiration_ns)
-        expected_body = expected_content_prefix + pickle.dumps(test_value)
+        expected_body = expected_content_prefix + pickle.dumps(
+            test_value, pickle.HIGHEST_PROTOCOL
+        )
 
         expected_s3_key = "1-day/default_timeout_data_1"
 

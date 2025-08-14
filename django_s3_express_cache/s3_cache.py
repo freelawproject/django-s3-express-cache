@@ -88,6 +88,8 @@ class S3ExpressCacheBackend(BaseCache):
     Expired items are not automatically deleted by this backend.
     """
 
+    pickle_protocol = pickle.HIGHEST_PROTOCOL
+
     def _s3_compatible_key_func(
         self, key: str, key_prefix: str, version: int | None
     ) -> str:
@@ -156,7 +158,9 @@ class S3ExpressCacheBackend(BaseCache):
 
         expiration_time = time.time_ns() + timeout * 1e9 if timeout else 0
 
-        content = struct.pack("d", expiration_time) + pickle.dumps(value)
+        content = struct.pack("d", expiration_time) + pickle.dumps(
+            value, self.pickle_protocol
+        )
         self.client.put_object(Bucket=self.bucket_name, Key=key, Body=content)
 
     def has_key(self, raw_key, version=None):
