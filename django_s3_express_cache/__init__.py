@@ -4,8 +4,8 @@ import struct
 import time
 from datetime import datetime
 
-import boto3
 from django.core.cache.backends.base import DEFAULT_TIMEOUT, BaseCache
+from django.utils.functional import cached_property
 
 
 def turn_key_into_directory_path(key: str) -> str:
@@ -103,12 +103,17 @@ class S3ExpressCacheBackend(BaseCache):
         # This creates a directory-like structure in S3.
         return f"{key_prefix}/{_key}" if key_prefix else _key
 
+    @cached_property
+    def client(self):
+        import boto3
+
+        return boto3.client("s3")
+
     def __init__(self, bucket, params):
         super().__init__(params)
         self.bucket_name = bucket
         self.key_func = self._s3_compatible_key_func
 
-        self.client = boto3.client("s3")
         # Use Session-based authentication to mitigate auth latency
         self.client.create_session(Bucket=self.bucket_name)
 
