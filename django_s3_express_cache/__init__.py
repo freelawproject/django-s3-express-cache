@@ -174,13 +174,16 @@ class S3ExpressCacheBackend(BaseCache):
         """
         key = self.make_key(raw_key, version)
         try:
-            response = self.client.get_object(Bucket=self.bucket_name, Key=key)
+            # Request only the expiration timestamp bytes
+            response = self.client.get_object(
+                Bucket=self.bucket_name,
+                Key=key,
+                Range="bytes=0-7",
+            )
         except self.client.exceptions.NoSuchKey:
             return False
 
-        expiration_timestamp = struct.unpack(
-            "d", response["Body"].read(amt=8)
-        )[0]
+        expiration_timestamp = struct.unpack("d", response["Body"].read())[0]
         # If expiration_timestamp is 0, it's a persistent object.
         if not expiration_timestamp:
             return True
