@@ -88,6 +88,12 @@ class S3ExpressCacheBackend(BaseCache):
     Expired items are not automatically deleted by this backend.
     """
 
+    HEADER_FORMAT = "dHHQ"
+    # d: double (8 bytes) expiration timestamp
+    # H: unsigned short (2 bytes) format version
+    # H: unsigned short (2 byte) compression type
+    # Q: unsigned long long (8 bytes) reserved/extra space
+
     pickle_protocol = pickle.HIGHEST_PROTOCOL
 
     def _s3_compatible_key_func(
@@ -114,8 +120,45 @@ class S3ExpressCacheBackend(BaseCache):
         self.bucket_name = bucket
         self.key_func = self._s3_compatible_key_func
 
+        options = params.get("OPTIONS", {})
+        self.header_version = params.get(
+            "HEADER_VERSION", options.get("HEADER_VERSION", 1)
+        )
+        self.compression_type = params.get(
+            "COMPRESSION_TYPE", options.get("COMPRESSION_TYPE", 0)
+        )
         # Use Session-based authentication to mitigate auth latency
         self.client.create_session(Bucket=self.bucket_name)
+
+    @property
+    def _get_header_size(self) -> int:
+        return struct.calcsize(self.HEADER_FORMAT)
+
+    def make_header(self, expiration_time) -> bytes:
+        """
+        Build a binary header for cache storage.
+
+        Layout:
+        - Bytes 0-7   : expiration time (float, seconds since epoch in ns)
+        - Byte 8-9    : header format version
+        - Bytes 10-11 : compression type (0 = none, 1 = zlib, etc.)
+        - Bytes 12-20 : reserved extra space (8 bytes)
+        """
+        return struct.pack(
+            self.HEADER_FORMAT,
+            expiration_time,
+            self.header_version,
+            self.compression_type,
+            0,
+        )
+
+    def parse_header(self, header_bytes) -> tuple[float, int, int, int]:
+        """
+        Unpack a binary header into its fields.
+
+        Returns: (expiration_time, version, compression, extra_bytes)
+        """
+        return struct.unpack(self.HEADER_FORMAT, header_bytes)
 
     def make_key(self, key, version=None):
         """
@@ -163,9 +206,13 @@ class S3ExpressCacheBackend(BaseCache):
 
         expiration_time = time.time_ns() + timeout * 1e9 if timeout else 0
 
-        content = struct.pack("d", expiration_time) + pickle.dumps(
-            value, self.pickle_protocol
-        )
+        # Pickle data
+        serialized_data = pickle.dumps(value, self.pickle_protocol)
+
+        # Pack header
+        header = self.make_header(expiration_time)
+
+        content = header + serialized_data
         self.client.put_object(Bucket=self.bucket_name, Key=key, Body=content)
 
     def has_key(self, raw_key, version=None):
@@ -178,12 +225,18 @@ class S3ExpressCacheBackend(BaseCache):
             response = self.client.get_object(
                 Bucket=self.bucket_name,
                 Key=key,
-                Range="bytes=0-7",
+                Range=f"bytes=0-{self._get_header_size - 1}",
             )
         except self.client.exceptions.NoSuchKey:
             return False
 
-        expiration_timestamp = struct.unpack("d", response["Body"].read())[0]
+        expiration_timestamp, version, *_ = self.parse_header(
+            response["Body"].read()
+        )
+
+        if version != self.header_version:
+            raise ValueError(f"Unsupported cache entry version: {version}")
+
         # If expiration_timestamp is 0, it's a persistent object.
         if not expiration_timestamp:
             return True
@@ -215,11 +268,13 @@ class S3ExpressCacheBackend(BaseCache):
 
         # Iterate over chunks of the S3 object's body.
         # The first 8 bytes (chunk_size=8) are expected to be the expiration timestamp.
-        for i, chunk in enumerate(response["Body"].iter_chunks(chunk_size=8)):
+        for i, chunk in enumerate(
+            response["Body"].iter_chunks(chunk_size=self._get_header_size)
+        ):
             if i == 0:
-                # For the first chunk, unpack the 8 bytes to get the expiration
+                # For the first chunk, unpack the header to get the expiration
                 # timestamp.
-                expiration_timestamp = struct.unpack("d", chunk)[0]
+                expiration_timestamp, version, *_ = self.parse_header(chunk)
                 # If expiration_timestamp is 0, it's a persistent object.
                 if not expiration_timestamp:
                     continue

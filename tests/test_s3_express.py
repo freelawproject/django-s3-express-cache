@@ -8,6 +8,8 @@ from django_s3_express_cache import S3ExpressCacheBackend
 
 
 class TestS3ExpressCacheBackend(unittest.TestCase):
+    DEFAULT_HEADER_FORMAT = "dHHQ"
+
     def setUp(self):
         """
         Set up mocks for boto3 S3 client and other dependencies before each test.
@@ -81,7 +83,9 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
         expected_s3_key = "persistent_data:test_1"
         # Persistent keys are stored with an expiration time of 0.
         expected_expiration_ns = 0
-        expected_content_prefix = struct.pack("d", expected_expiration_ns)
+        expected_content_prefix = struct.pack(
+            self.DEFAULT_HEADER_FORMAT, expected_expiration_ns, 1, 0, 0
+        )
         expected_body = expected_content_prefix + pickle.dumps(
             test_value, pickle.HIGHEST_PROTOCOL
         )
@@ -110,7 +114,9 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
         expected_expiration_ns = (
             fake_date.timestamp() + self.cache.default_timeout * 1e9
         )
-        expected_content_prefix = struct.pack("d", expected_expiration_ns)
+        expected_content_prefix = struct.pack(
+            self.DEFAULT_HEADER_FORMAT, expected_expiration_ns, 1, 0, 0
+        )
         expected_body = expected_content_prefix + pickle.dumps(
             test_value, pickle.HIGHEST_PROTOCOL
         )
@@ -151,7 +157,9 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
         past_expiration_ns = date_ten_days_ago.timestamp()
 
         # Create the content prefix with the past expiration timestamp.
-        content_prefix = struct.pack("d", past_expiration_ns)
+        content_prefix = struct.pack(
+            self.DEFAULT_HEADER_FORMAT, past_expiration_ns, 1, 0, 0
+        )
 
         # Configure the mock S3 client to return the expired content.
         mock_response_body = Mock()
@@ -169,7 +177,9 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
         """Verifies has_key returns True for a persistent cache entry."""
         # Simulate a persistent S3 object by setting its expiration time to 0.
         persistent_expiration_ns = 0
-        content_prefix = struct.pack("d", persistent_expiration_ns)
+        content_prefix = struct.pack(
+            self.DEFAULT_HEADER_FORMAT, persistent_expiration_ns, 1, 0, 0
+        )
 
         # Configure the mock S3 client to return the persistent content.
         mock_response_body = Mock()
@@ -193,7 +203,9 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
         future_expiration_ns = tomorrow.timestamp()
 
         # Pack the future expiration time into an 8-byte prefix.
-        content_prefix = struct.pack("d", future_expiration_ns)
+        content_prefix = struct.pack(
+            self.DEFAULT_HEADER_FORMAT, future_expiration_ns, 1, 0, 0
+        )
 
         # Configure the mock S3 client to return the content prefix.
         mock_response_body = Mock()
@@ -277,7 +289,9 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
         past_expiration_ns = date_two_days_ago.timestamp()
 
         # Create the content prefix with the past expiration timestamp.
-        content_prefix = struct.pack("d", past_expiration_ns)
+        content_prefix = struct.pack(
+            self.DEFAULT_HEADER_FORMAT, past_expiration_ns, 1, 0, 0
+        )
 
         # Configure the mock S3 client to return only the content prefix (no
         # actual data needed for an expired key).
@@ -301,7 +315,9 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
         """Verifies `get` retrieves the correct value for a persistent key."""
         # Simulate a persistent object by setting its expiration time to 0.
         persistent_expiration_ns = 0
-        content_prefix = struct.pack("d", persistent_expiration_ns)
+        content_prefix = struct.pack(
+            self.DEFAULT_HEADER_FORMAT, persistent_expiration_ns, 1, 0, 0
+        )
         pickled_value = pickle.dumps("persistent_value")
 
         # Configure the mock S3 client to return the content for a persistent
@@ -334,7 +350,9 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
         future_expiration_ns = future_expiration_time.timestamp()
 
         # Prepare the content prefix and the pickled value that S3 would return
-        content_prefix = struct.pack("d", future_expiration_ns)
+        content_prefix = struct.pack(
+            self.DEFAULT_HEADER_FORMAT, future_expiration_ns, 1, 0, 0
+        )
         pickled_value = pickle.dumps("valid_value")
 
         # Configure the mock S3 client to return the prefixed and pickled
