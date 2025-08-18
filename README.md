@@ -102,6 +102,8 @@ This means:
 
 - **Lifecycle rule setup:** initial setup requires scripts to create rules, introducing a small implementation overhead. Once configured, cleanup is automatic, but planning and provisioning are required upfront.
 
+- The backend does not currently implement touch or clear methods.
+
 ## Installation
 
 Installing django-s3-express-cache is easy.
