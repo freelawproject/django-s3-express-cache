@@ -88,8 +88,8 @@ class S3ExpressCacheBackend(BaseCache):
     Expired items are not automatically deleted by this backend.
     """
 
-    HEADER_FORMAT = "dHHQ"
-    # d: double (8 bytes) expiration timestamp
+    HEADER_FORMAT = "QHHQ"
+    # Q: unsigned long long (8 bytes) expiration time in nano seconds
     # H: unsigned short (2 bytes) format version
     # H: unsigned short (2 byte) compression type
     # Q: unsigned long long (8 bytes) reserved/extra space
@@ -204,7 +204,7 @@ class S3ExpressCacheBackend(BaseCache):
                     "The timeout must be less than or equal to the key's time prefix."
                 )
 
-        expiration_time = time.time_ns() + timeout * 1e9 if timeout else 0
+        expiration_time = int(time.time_ns() + timeout * 1e9) if timeout else 0
 
         # Pickle data
         serialized_data = pickle.dumps(value, self.pickle_protocol)
@@ -240,7 +240,7 @@ class S3ExpressCacheBackend(BaseCache):
         # If expiration_timestamp is 0, it's a persistent object.
         if not expiration_timestamp:
             return True
-        return expiration_timestamp > datetime.now().timestamp()
+        return expiration_timestamp > time.time_ns()
 
     def add(self, raw_key, value, timeout=None, version=None):
         """

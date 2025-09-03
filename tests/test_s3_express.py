@@ -8,7 +8,7 @@ from django_s3_express_cache import S3ExpressCacheBackend
 
 
 class TestS3ExpressCacheBackend(unittest.TestCase):
-    DEFAULT_HEADER_FORMAT = "dHHQ"
+    DEFAULT_HEADER_FORMAT = "QHHQ"
 
     def setUp(self):
         """
@@ -60,7 +60,7 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
         fake_date = datetime.now().replace(
             hour=0, minute=0, second=0, microsecond=0
         )
-        mock_time_ns.return_value = fake_date.timestamp()
+        mock_time_ns.return_value = int(fake_date.timestamp() * 1e9)
 
         # A key with a 10-day time prefix.
         test_key = "10-days:my_data"
@@ -103,7 +103,7 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
         fake_date = datetime.now().replace(
             hour=0, minute=0, second=0, microsecond=0
         )
-        mock_time_ns.return_value = fake_date.timestamp()
+        mock_time_ns.return_value = int(fake_date.timestamp() * 1e9)
 
         test_key = "1-day:default_timeout_data"
         test_value = {"data": [1, 2, 3]}
@@ -111,8 +111,8 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
         self.mock_s3_client.put_object.return_value = {}
         # Calculate the expected expiration time based on the fixed_time and
         # the cache's default_timeout.
-        expected_expiration_ns = (
-            fake_date.timestamp() + self.cache.default_timeout * 1e9
+        expected_expiration_ns = int(
+            (fake_date.timestamp() + self.cache.default_timeout) * 1e9
         )
         expected_content_prefix = struct.pack(
             self.DEFAULT_HEADER_FORMAT, expected_expiration_ns, 1, 0, 0
@@ -154,8 +154,7 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
             hour=0, minute=0, second=0, microsecond=0
         )
         date_ten_days_ago = date_today - timedelta(days=10)
-        past_expiration_ns = date_ten_days_ago.timestamp()
-
+        past_expiration_ns = int(date_ten_days_ago.timestamp() * 1e9)
         # Create the content prefix with the past expiration timestamp.
         content_prefix = struct.pack(
             self.DEFAULT_HEADER_FORMAT, past_expiration_ns, 1, 0, 0
@@ -200,7 +199,7 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
             hour=0, minute=0, second=0, microsecond=0
         )
         tomorrow = date_today + timedelta(days=1)
-        future_expiration_ns = tomorrow.timestamp()
+        future_expiration_ns = int(tomorrow.timestamp() * 1e9)
 
         # Pack the future expiration time into an 8-byte prefix.
         content_prefix = struct.pack(
@@ -286,7 +285,7 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
             hour=0, minute=0, second=0, microsecond=0
         )
         date_two_days_ago = date_today - timedelta(days=2)
-        past_expiration_ns = date_two_days_ago.timestamp()
+        past_expiration_ns = int(date_two_days_ago.timestamp() * 1e9)
 
         # Create the content prefix with the past expiration timestamp.
         content_prefix = struct.pack(
@@ -347,7 +346,7 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
             hour=0, minute=0, second=0, microsecond=0
         )
         future_expiration_time = date_today + timedelta(days=2)
-        future_expiration_ns = future_expiration_time.timestamp()
+        future_expiration_ns = int(future_expiration_time.timestamp() * 1e9)
 
         # Prepare the content prefix and the pickled value that S3 would return
         content_prefix = struct.pack(
