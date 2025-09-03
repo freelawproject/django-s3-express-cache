@@ -2,7 +2,6 @@ import pickle
 import re
 import struct
 import time
-from datetime import datetime
 
 from django.core.cache.backends.base import DEFAULT_TIMEOUT, BaseCache
 from django.utils.functional import cached_property
