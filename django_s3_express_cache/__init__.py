@@ -280,7 +280,7 @@ class S3ExpressCacheBackend(BaseCache):
                     continue
                 # If the current time is past the expiration, the item is expired,
                 # so return the default value.
-                if datetime.now().timestamp() > expiration_timestamp:
+                if time.time_ns() > expiration_timestamp:
                     return default
                 # Continue to the next chunk (which will be the actual data)
                 continue
