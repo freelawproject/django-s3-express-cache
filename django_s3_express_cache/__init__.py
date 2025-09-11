@@ -133,12 +133,12 @@ class S3ExpressCacheBackend(BaseCache):
     def _get_header_size(self) -> int:
         return struct.calcsize(self.HEADER_FORMAT)
 
-    def make_header(self, expiration_time) -> bytes:
+    def make_header(self, expiration_time: int) -> bytes:
         """
         Build a binary header for cache storage.
 
         Layout:
-        - Bytes 0-7   : expiration time (float, seconds since epoch in ns)
+        - Bytes 0-7   : expiration time (int, seconds since epoch in ns)
         - Byte 8-9    : header format version
         - Bytes 10-11 : compression type (0 = none, 1 = zlib, etc.)
         - Bytes 12-20 : reserved extra space (8 bytes)
