@@ -37,17 +37,19 @@ def turn_key_into_directory_path(key: str) -> str:
     return f"{match.group(1)}/{match.group(2)}"
 
 
-def parse_time_base_prefix(key: str) -> int:
+def parse_time_base_prefix(key: str, key_prefix: str = "") -> int:
     """
     Parses the numeric time component (days) from the cache key's prefix.
 
     This method expects the key to start with a time-based prefix in the
-    format "N-day(s):" or "N-day(s)/". It extracts the integer value 'N'
-    from this prefix. This numeric value represents the maximum lifespan
-    (in days) of the cached item.
+    format "N-day(s):" or "N-day(s)/" (optionally preceded by `key_prefix`).
+    It extracts the integer value 'N' from this prefix. This numeric value
+    represents the maximum lifespan (in days) of the cached item.
 
     Args:
         key (str): The cache key string.
+        key_prefix (str, optional): An optional prefix to strip before
+            parsing. Defaults to "".
 
     Raises:
         ValueError: If the key does not conform to the expected time-based
@@ -57,9 +59,11 @@ def parse_time_base_prefix(key: str) -> int:
         int: The integer value representing the number of days from the
             prefix.
     """
+    _key = re.sub(f"{key_prefix}/", "", key) if key_prefix else key
+
     pattern = r"^(\d+)-days?[:/](.*)$"
 
-    match = re.match(pattern, key)
+    match = re.match(pattern, _key)
     if not match:
         raise ValueError("Key does not have a valid time prefix")
 
@@ -205,7 +209,7 @@ class S3ExpressCacheBackend(BaseCache):
         timeout = self.get_backend_timeout(timeout)
         # Validate timeout against key's time prefix for non-persistent items
         if timeout is not None:
-            key_time_prefix = parse_time_base_prefix(key)
+            key_time_prefix = parse_time_base_prefix(key, self.key_prefix)
             timeout_in_days = timeout // (24 * 60 * 60)
             if timeout_in_days > key_time_prefix:
                 raise ValueError(

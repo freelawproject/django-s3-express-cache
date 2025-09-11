@@ -142,25 +142,43 @@ class TestS3ExpressCacheBackendHelpers(unittest.TestCase):
     def test_can_parse_time_prefix(self):
         """check `parse_time_prefix` correctly extracts time values from keys."""
         valid_test_cases = {
-            "Singular 'day:' prefix": ("1-day:test", 1),
-            "Plural 'days:' prefix": ("35-days:another", 35),
+            "Singular 'day:' prefix": ("", "1-day:test", 1),
+            "Plural 'days:' prefix": ("", "35-days:another", 35),
             "Singular prefix with directory-like slashes": (
+                "",
                 "1-day/another",
                 1,
             ),
             "Plural prefix with directory-like slashes": (
+                "",
                 "10-days/another",
                 10,
             ),
             "Key with subpath and 'days/' prefix": (
+                "",
                 "90-days/path/to/item",
                 90,
             ),
-            "Key with subpath and 'day:' prefix": ("1-day:path:to:item", 1),
+            "Key with subpath and 'day:' prefix": (
+                "",
+                "1-day:path:to:item",
+                1,
+            ),
+            "Key with backend prefix and plural time base key": (
+                "s3-cache",
+                "s3-cache/2-days:path:to:item",
+                2,
+            ),
         }
 
-        for description, (key, expected_value) in valid_test_cases.items():
+        for description, (
+            backend_prefix,
+            key,
+            expected_value,
+        ) in valid_test_cases.items():
             with self.subTest(
                 msg=f"Testing valid key: '{key}' ({description})"
             ):
-                self.assertEqual(parse_time_base_prefix(key), expected_value)
+                self.assertEqual(
+                    parse_time_base_prefix(key, backend_prefix), expected_value
+                )
