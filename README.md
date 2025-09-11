@@ -175,7 +175,7 @@ CACHES = {
         "LOCATION": REDIS_URL,
     },
     "s3": {
-        "BACKEND": "django-s3-express-cache.S3ExpressCacheBackend",
+        "BACKEND": "django_s3_express_cache.S3ExpressCacheBackend",
         "LOCATION": "S3_CACHE_BUCKET_NAME",
         "OPTIONS": {
             "HEADER_VERSION": 1,
