@@ -2,6 +2,7 @@ import pickle
 import re
 import struct
 import time
+from typing import Any
 
 from django.core.cache.backends.base import DEFAULT_TIMEOUT, BaseCache
 from django.utils.functional import cached_property
@@ -114,7 +115,7 @@ class S3ExpressCacheBackend(BaseCache):
 
         return boto3.client("s3")
 
-    def __init__(self, bucket, params):
+    def __init__(self, bucket: str, params: dict[str, Any]):
         super().__init__(params)
         self.bucket_name = bucket
         self.key_func = self._s3_compatible_key_func
@@ -151,7 +152,7 @@ class S3ExpressCacheBackend(BaseCache):
             0,
         )
 
-    def parse_header(self, header_bytes) -> tuple[float, int, int, int]:
+    def parse_header(self, header_bytes: bytes) -> tuple[int, ...]:
         """
         Unpack a binary header into its fields.
 
@@ -159,14 +160,16 @@ class S3ExpressCacheBackend(BaseCache):
         """
         return struct.unpack(self.HEADER_FORMAT, header_bytes)
 
-    def make_key(self, key, version=None):
+    def make_key(self, key: str, version: int | None = None) -> str:
         """
         Generates directory-like keys for storage in S3.
         """
         _key = turn_key_into_directory_path(key)
         return super().make_key(_key, version)
 
-    def get_backend_timeout(self, timeout=DEFAULT_TIMEOUT):
+    def get_backend_timeout(
+        self, timeout: int | None = DEFAULT_TIMEOUT
+    ) -> int | None:
         """
         Return the timeout value usable by this backend based upon the provided
         timeout.
@@ -177,7 +180,13 @@ class S3ExpressCacheBackend(BaseCache):
         # Non-positive values will cause the key to be deleted.
         return None if timeout is None else max(0, int(timeout))
 
-    def set(self, key, value, timeout=DEFAULT_TIMEOUT, version=None):
+    def set(
+        self,
+        key: str,
+        value: Any,
+        timeout: int | None = DEFAULT_TIMEOUT,
+        version: int | None = None,
+    ) -> None:
         """
         Set a value in the cache. If timeout is given, use that timeout for the
         key; otherwise use the default cache timeout.
@@ -214,7 +223,7 @@ class S3ExpressCacheBackend(BaseCache):
         content = header + serialized_data
         self.client.put_object(Bucket=self.bucket_name, Key=key, Body=content)
 
-    def has_key(self, raw_key, version=None):
+    def has_key(self, raw_key: str, version: int | None = None) -> bool:
         """
         Return True if the key is in the cache and has not expired.
         """
@@ -241,7 +250,13 @@ class S3ExpressCacheBackend(BaseCache):
             return True
         return expiration_timestamp > time.time_ns()
 
-    def add(self, raw_key, value, timeout=None, version=None):
+    def add(
+        self,
+        raw_key: str,
+        value: Any,
+        timeout: int | None = None,
+        version: int | None = None,
+    ) -> bool:
         """
         Adds a new item to the cache if it doesn't already exist.
         """
@@ -250,7 +265,12 @@ class S3ExpressCacheBackend(BaseCache):
         self.set(raw_key, value, timeout, version)
         return True
 
-    def get(self, raw_key, default=None, version=None):
+    def get(
+        self,
+        raw_key: str,
+        default: Any | None = None,
+        version: int | None = None,
+    ) -> Any:
         """
         Retrieves an item from the cache, returning a default
         if expired or not found.
@@ -295,7 +315,7 @@ class S3ExpressCacheBackend(BaseCache):
         # original value and return it.
         return pickle.loads(bytes(cached_object))
 
-    def delete(self, raw_key, version=None) -> bool:
+    def delete(self, raw_key: str, version: int | None = None) -> bool:
         """
         Removes an item from S3 bucket.
         """
