@@ -25,7 +25,7 @@ def turn_key_into_directory_path(key: str) -> str:
             prefix, or the original key if no transformation is necessary or
             applicable.
     """
-    pattern_with_colon = r"^(^\d+-days?):(.*)$"
+    pattern_with_colon = r"^(\d+-days?):(.*)$"
 
     # Attempt to match the pattern at the beginning of the S3 object key.
     match = re.match(pattern_with_colon, key)
@@ -56,7 +56,7 @@ def parse_time_base_prefix(key: str) -> int:
         int: The integer value representing the number of days from the
             prefix.
     """
-    pattern = r"^(^\d+)-days?[:/](.*)$"
+    pattern = r"^(\d+)-days?[:/](.*)$"
 
     match = re.match(pattern, key)
     if not match:
