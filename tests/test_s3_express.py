@@ -53,6 +53,22 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
         # failed beforehand.
         self.mock_s3_client.put_object.assert_not_called()
 
+    def test_set_rejects_persistent_key_with_time_prefix(self):
+        """Ensure persistent keys cannot use time-based prefixes."""
+        test_key = "1-day:persistent"
+        test_value = "some_value"
+
+        # Persistent key (no expiration)
+        timeout = None
+        with self.assertRaisesRegex(
+            ValueError,
+            "Persistent keys cannot use a time-based prefix",
+        ):
+            self.cache.set(test_key, test_value, timeout=timeout)
+
+        # Verify no S3 write was attempted due to validation failure
+        self.mock_s3_client.put_object.assert_not_called()
+
     @patch("time.time_ns")
     def test_set_timeout_within_key_prefix(self, mock_time_ns):
         """Tests setting a key with a timeout within its defined time prefix."""
@@ -342,7 +358,7 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
 
         # Attempt to retrieve the persistent key.
         result = self.cache.get(
-            "1-day:persistent_key", default="default_value"
+            "no-prefix-day:persistent_key", default="default_value"
         )
         self.assertEqual(result, "persistent_value")
 
