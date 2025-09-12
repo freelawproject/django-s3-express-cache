@@ -213,7 +213,7 @@ A timestamp stored in the item's fixed-width header is used to ensure that items
 
 Lifecycle rules are used to cull stale items from the cache. Rules should be configured to cull objects by prefix.
 
-For example:
+For example, without a `KEY_PREFIX`:
 - Objects under 7-days/ expire after 7 days
 - Objects under 30-days/ expire after 30 days
 
@@ -243,6 +243,10 @@ For example:
 ③ Enable the rule
 
 ④ Set the expiration time to match the directory name
+
+> [!NOTE]
+> If you configure `KEY_PREFIX` in your Django settings, this prefix is prepended to all keys.
+> Your S3 Lifecycle rules must include the `KEY_PREFIX` when defining the filter. For example, if `KEY_PREFIX = "cache-v1"` then the `7-days` rule should filter `cache-v1/7-days/` instead of just `7-days/`.
 
 These lifecycle rules complement the cache’s in-object header expiration. The header allows our implementation to short-circuit reads (treating expired items as misses), while S3 lifecycle policies ensure expired data is eventually deleted from the bucket.
 
