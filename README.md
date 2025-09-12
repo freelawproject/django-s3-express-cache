@@ -335,6 +335,29 @@ print(client.get("1-days:temp"))  # None
 client.delete("1-days:example-key")
 ```
 
+5. Persistent objects (never expire)
+You can store a persistent object by passing `timeout=None`. These objects are never considered expired by the backend, and their header expiration timestamp is set to 0. Be careful not to use a time-based prefix (N-days:) for persistent items, as that will raise a `ValueError`.
+
+```python
+# Persistent key (never expires)
+client.set("persistent:config", {"feature_flag": True}, timeout=None)
+
+# Retrieve persistent object
+value = client.get("persistent:config")
+print(value)  # {"feature_flag": True}
+
+# Check existence
+exists = client.has_key("persistent:config")
+print(exists)  # True
+
+# Deleting persistent object
+client.delete("persistent:config")
+
+# Attempting to store a persistent object under a time-based prefix
+client.set("1-days:persistent_config", {"feature_flag": True}, timeout=None)
+# Raises ValueError
+```
+
 ## Roadmap
 
  - Reserved header fields allow future compression support (zlib/zstd).
