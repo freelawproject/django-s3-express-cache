@@ -207,6 +207,11 @@ class S3ExpressCacheBackend(BaseCache):
         key = self.make_and_validate_key(key, version=version)
 
         timeout = self.get_backend_timeout(timeout)
+
+        # Skip caching if timeout == 0
+        if timeout == 0:
+            return
+
         # Validate timeout against key's time prefix for non-persistent items
         if timeout is not None:
             key_time_prefix = parse_time_base_prefix(key, self.key_prefix)
@@ -216,7 +221,9 @@ class S3ExpressCacheBackend(BaseCache):
                     "The timeout must be less than or equal to the key's time prefix."
                 )
 
-        expiration_time = int(time.time_ns() + timeout * 1e9) if timeout else 0
+        expiration_time = (
+            int(time.time_ns() + timeout * 1e9) if timeout is not None else 0
+        )
 
         # Pickle data
         serialized_data = pickle.dumps(value, self.pickle_protocol)
