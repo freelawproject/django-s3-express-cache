@@ -37,7 +37,9 @@ def turn_key_into_directory_path(key: str) -> str:
     return f"{match.group(1)}/{match.group(2)}"
 
 
-def parse_time_base_prefix(key: str, key_prefix: str = "") -> int:
+def parse_time_base_prefix(
+    key: str, key_prefix: str = "", is_persistent_object: bool = False
+) -> int | None:
     """
     Parses the numeric time component (days) from the cache key's prefix.
 
@@ -50,10 +52,16 @@ def parse_time_base_prefix(key: str, key_prefix: str = "") -> int:
         key (str): The cache key string.
         key_prefix (str, optional): An optional prefix to strip before
             parsing. Defaults to "".
+        is_persistent_object (bool, optional): If True, the key is expected
+            to represent a persistent object (no expiration). In this case,
+            using a time-based prefix is invalid and will raise a ValueError.
+            Defaults to False.
 
     Raises:
-        ValueError: If the key does not conform to the expected time-based
-            prefix format (e.g., "N-day(s):" or "N-day(s)/").
+        ValueError:
+            - If a persistent object is configured with a time-based prefix.
+            - If the key does not conform to the expected time-based prefix
+            format (e.g., "N-day(s):" or "N-day(s)/").
 
     Returns:
         int: The integer value representing the number of days from the
@@ -64,6 +72,12 @@ def parse_time_base_prefix(key: str, key_prefix: str = "") -> int:
     pattern = r"^(\d+)-days?[:/](.*)$"
 
     match = re.match(pattern, _key)
+
+    if is_persistent_object:
+        if match:
+            raise ValueError("Persistent keys cannot use a time-based prefix")
+        return None
+
     if not match:
         raise ValueError("Key does not have a valid time prefix")
 
@@ -212,9 +226,16 @@ class S3ExpressCacheBackend(BaseCache):
         if timeout == 0:
             return
 
+        # Persistent objects are represented with timeout=None
+        is_persistent_object = timeout is None
+
+        # Parse and validate any time-based prefix in the key
+        key_time_prefix = parse_time_base_prefix(
+            key, self.key_prefix, is_persistent_object
+        )
+
         # Validate timeout against key's time prefix for non-persistent items
-        if timeout is not None:
-            key_time_prefix = parse_time_base_prefix(key, self.key_prefix)
+        if not is_persistent_object:
             timeout_in_days = timeout // (24 * 60 * 60)
             if timeout_in_days > key_time_prefix:
                 raise ValueError(
@@ -222,7 +243,9 @@ class S3ExpressCacheBackend(BaseCache):
                 )
 
         expiration_time = (
-            int(time.time_ns() + timeout * 1e9) if timeout is not None else 0
+            int(time.time_ns() + timeout * 1e9)
+            if not is_persistent_object
+            else 0
         )
 
         # Pickle data
