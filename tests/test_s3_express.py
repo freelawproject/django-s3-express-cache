@@ -96,6 +96,17 @@ class TestS3ExpressCacheBackend(unittest.TestCase):
             Bucket=self.bucket_name, Key=expected_s3_key, Body=expected_body
         )
 
+    def test_set_zero_timeout(self):
+        """Tests setting a key with timeout=0 (should not be cached)."""
+        test_key = "zero_timeout:test"
+        test_value = "should_not_be_cached"
+        timeout = 0
+
+        self.cache.set(test_key, test_value, timeout=timeout)
+
+        # Since timeout=0 means "don't cache", no S3 put_object call should happen.
+        self.mock_s3_client.put_object.assert_not_called()
+
     @patch("time.time_ns")
     def test_set_with_backend_default_timeout(self, mock_time_ns):
         """Test set uses the backend's default timeout when it's not provided."""
