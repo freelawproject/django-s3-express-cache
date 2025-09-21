@@ -6,7 +6,7 @@ requires = [
 
 [project]
 name = "django-s3-express-cache"
-version = "0.0.1"
+version = "0.1.0"
 description = "django-s3-express-cache"
 authors = [{ name = "Free Law Project", email = "info@free.law" }]
 requires-python = ">=3.13"
