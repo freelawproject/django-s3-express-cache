@@ -184,6 +184,10 @@ CACHES = {
 }
 ```
 
+This library uses system-wide environment variables for configuration. Make sure to set the necessary AWS environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`, etc.) before using the cache.
+
+If you want more details on how `boto3` reads configuration from environment variables, check the [official boto3 documentation](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-environment-variables).
+
 
 ### Bucket Set Up
 
