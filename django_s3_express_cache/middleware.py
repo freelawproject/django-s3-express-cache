@@ -153,6 +153,11 @@ class CacheMiddlewareS3Compatible(CacheMiddleware):
         self.time_based_prefix = kwargs.pop("time_based_prefix", None)
         super().__init__(get_response, cache_timeout, page_timeout, **kwargs)
         self._is_s3_backend = isinstance(self.cache, S3ExpressCacheBackend)
+        if self._is_s3_backend and not self.time_based_prefix:
+            raise ValueError(
+                "CacheMiddlewareS3Compatible requires 'time_based_prefix' "
+                "when used with S3ExpressCacheBackend."
+            )
 
     @property
     def _get_cache_key_func(self):
