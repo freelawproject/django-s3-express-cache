@@ -149,6 +149,8 @@ class CacheMiddlewareS3Compatible(CacheMiddleware):
     def __init__(
         self, get_response, cache_timeout=None, page_timeout=None, **kwargs
     ):
+        # Extract and remove custom kwarg before calling super()
+        self.time_based_prefix = kwargs.pop("time_based_prefix", None)
         super().__init__(get_response, cache_timeout, page_timeout, **kwargs)
         self._is_s3_backend = isinstance(self.cache, S3ExpressCacheBackend)
 
