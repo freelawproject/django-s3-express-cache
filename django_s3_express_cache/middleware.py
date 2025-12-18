@@ -146,14 +146,17 @@ class CacheMiddlewareS3Compatible(CacheMiddleware):
     cache key generation.
     """
 
-    def _use_s3_backend(self) -> bool:
-        return isinstance(self.cache, S3ExpressCacheBackend)
+    def __init__(
+        self, get_response, cache_timeout=None, page_timeout=None, **kwargs
+    ):
+        super().__init__(get_response, cache_timeout, page_timeout, **kwargs)
+        self._is_s3_backend = isinstance(self.cache, S3ExpressCacheBackend)
 
     @property
     def _get_cache_key_func(self):
         return (
             get_cache_key_s3_compatible
-            if self._use_s3_backend()
+            if self._is_s3_backend
             else get_cache_key
         )
 
@@ -161,7 +164,7 @@ class CacheMiddlewareS3Compatible(CacheMiddleware):
     def _learn_cache_key_func(self):
         return (
             learn_cache_key_s3_compatible
-            if self._use_s3_backend()
+            if self._is_s3_backend
             else learn_cache_key
         )
 
