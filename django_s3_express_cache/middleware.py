@@ -89,7 +89,7 @@ def get_cache_key_s3_compatible(
         return None
 
     return _generate_cache_key_s3_compatible(
-        request, method, headerlist, key_prefix
+        request, method, headerlist, key_prefix, time_based_prefix
     )
 
 
