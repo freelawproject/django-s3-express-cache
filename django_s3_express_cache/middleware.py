@@ -12,7 +12,6 @@ from django.utils.cache import (
     cc_delim_re,
     get_max_age,
     has_vary_header,
-    learn_cache_key,
     patch_response_headers,
 )
 from django.utils.http import parse_http_date_safe
@@ -163,14 +162,6 @@ class CacheMiddlewareS3Compatible(CacheMiddleware):
                 "when used with S3ExpressCacheBackend."
             )
 
-    @property
-    def _learn_cache_key_func(self):
-        return (
-            learn_cache_key_s3_compatible
-            if self._is_s3_backend
-            else learn_cache_key
-        )
-
     def process_request(self, request):
         # If not using S3 backend, fall back to default behavior.
         if not self._is_s3_backend:
@@ -226,6 +217,10 @@ class CacheMiddlewareS3Compatible(CacheMiddleware):
 
     def process_response(self, request, response):
         """Store the response in cache when appropriate."""
+        # If not using S3 backend, fall back to default behavior.
+        if not self._is_s3_backend:
+            return super().process_request(request)
+
         if not self._should_update_cache(request, response):
             # We don't need to update the cache, just return.
             return response
@@ -256,10 +251,14 @@ class CacheMiddlewareS3Compatible(CacheMiddleware):
 
         patch_response_headers(response, timeout)
 
-        # Store or learn the cache key using the correct backend function.
-        learn_func = self._learn_cache_key_func
-        cache_key = learn_func(
-            request, response, timeout, self.key_prefix, cache=self.cache
+        # Store or learn the cache key using the compatible backend function.
+        cache_key = learn_cache_key_s3_compatible(
+            request,
+            response,
+            timeout,
+            self.key_prefix,
+            cache=self.cache,
+            time_based_prefix=self.time_based_prefix,
         )
         if timeout and response.status_code == 200:
             if hasattr(response, "render") and callable(response.render):
