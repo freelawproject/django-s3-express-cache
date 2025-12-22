@@ -10,7 +10,6 @@ from django.core.cache import BaseCache
 from django.http import HttpRequest, HttpResponse
 from django.utils.cache import (
     cc_delim_re,
-    get_cache_key,
     get_max_age,
     has_vary_header,
     learn_cache_key,
@@ -165,14 +164,6 @@ class CacheMiddlewareS3Compatible(CacheMiddleware):
             )
 
     @property
-    def _get_cache_key_func(self):
-        return (
-            get_cache_key_s3_compatible
-            if self._is_s3_backend
-            else get_cache_key
-        )
-
-    @property
     def _learn_cache_key_func(self):
         return (
             learn_cache_key_s3_compatible
@@ -181,15 +172,22 @@ class CacheMiddlewareS3Compatible(CacheMiddleware):
         )
 
     def process_request(self, request):
+        # If not using S3 backend, fall back to default behavior.
+        if not self._is_s3_backend:
+            return super().process_request(request)
+
         if request.method not in ("GET", "HEAD"):
             request._cache_update_cache = False
             return None  # Don't bother checking the cache.
 
-        # Use the appropriate cache key generator based on backend:
-        #   • S3 backend -> use S3-compatible helpers.
-        #   • default backend -> use Django's standard helpers.
-        key_func = self._get_cache_key_func
-        cache_key = key_func(request, self.key_prefix, "GET", cache=self.cache)
+        # Use the appropriate cache key generator
+        cache_key = get_cache_key_s3_compatible(
+            request,
+            self.key_prefix,
+            "GET",
+            cache=self.cache,
+            time_based_prefix=self.time_based_prefix,
+        )
         if cache_key is None:
             # No cache information available, need to rebuild.
             request._cache_update_cache = True
@@ -198,8 +196,12 @@ class CacheMiddlewareS3Compatible(CacheMiddleware):
         response = self.cache.get(cache_key)
         # if it wasn't found and we are looking for a HEAD, try looking just for that
         if response is None and request.method == "HEAD":
-            cache_key = key_func(
-                request, self.key_prefix, "HEAD", cache=self.cache
+            cache_key = get_cache_key_s3_compatible(
+                request,
+                self.key_prefix,
+                "HEAD",
+                cache=self.cache,
+                time_based_prefix=self.time_based_prefix,
             )
             response = self.cache.get(cache_key)
 
