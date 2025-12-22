@@ -52,7 +52,7 @@ class MiddlewareTest(SimpleTestCase):
     ):
         """Verify S3-compatible cache keys are generated correctly."""
         request = self.factory.get(path="/some-url/")
-        key_prefix = "1-days"
+        time_based_prefix = "1-days"
 
         # Learn the cache key for the first time (triggers cache set)
         response = HttpResponse("Test")
@@ -60,15 +60,15 @@ class MiddlewareTest(SimpleTestCase):
             request,
             response,
             cache_timeout=60,
-            key_prefix=key_prefix,
             cache=self.cache,
+            time_based_prefix=time_based_prefix,
         )
 
         # Ensure cache set was called to store the key
         mock_cache_set.assert_called_once()
 
         # Key should start with the specified prefix
-        self.assertTrue(cache_key.startswith(key_prefix))
+        self.assertTrue(cache_key.startswith(time_based_prefix))
 
         # Key should not contain slashes
         self.assertNotIn("/", cache_key)
@@ -76,7 +76,7 @@ class MiddlewareTest(SimpleTestCase):
         # Mock cache get to simulate fetching stored headers
         mock_cache_get.return_value = []
         fetched_key = get_cache_key_s3_compatible(
-            request, key_prefix=key_prefix, cache=self.cache
+            request, cache=self.cache, time_based_prefix=time_based_prefix
         )
 
         # Ensure fetched key matches the learned key
@@ -98,7 +98,10 @@ class MiddlewareTest(SimpleTestCase):
 
         request = self.factory.get("/cached-url/")
         middleware = CacheMiddlewareS3Compatible(
-            dummy_view, cache_timeout=60, cache_alias="s3"
+            dummy_view,
+            cache_timeout=60,
+            cache_alias="s3",
+            time_based_prefix="1-days",
         )
 
         # Simulate cache miss on first call
