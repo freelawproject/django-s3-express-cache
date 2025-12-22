@@ -1,11 +1,13 @@
 import time
-from hashlib import md5
 
 from django.conf import settings
 from django.core.cache import caches
 from django.middleware.cache import CacheMiddleware
 
-from django.utils.cache import _i18n_cache_key_suffix  # type: ignore[attr-defined] # isort: skip
+from django.utils.cache import _generate_cache_key  # type: ignore[attr-defined] # isort: skip
+from django.utils.cache import _generate_cache_header_key  # type: ignore[attr-defined] # isort: skip
+from django.core.cache import BaseCache
+from django.http import HttpRequest, HttpResponse
 from django.utils.cache import (
     cc_delim_re,
     get_cache_key,
@@ -19,66 +21,60 @@ from django.utils.http import parse_http_date_safe
 from django_s3_express_cache import S3ExpressCacheBackend
 
 
-def _generate_cache_key_s3_compatible(request, method, headerlist, key_prefix):
+def _generate_cache_key_s3_compatible(
+    request: HttpRequest,
+    method: str,
+    headerlist: list[str],
+    key_prefix: str,
+    time_based_prefix: str,
+) -> str:
     """
     Generate a cache key compatible with S3ExpressCacheBackend.
 
-    Django's default `_generate_cache_key` places the key_prefix near the
-    end of the key, preventing the prefix from being used as a time-based
-    directory prefix required by S3ExpressCacheBackend.
-
-    Additionally, Django's default keys may include forward slashes ('/').
-    In S3, slashes create nested folders, which is undesirable for our
-    implementation.
-
-    This helper ensures:
-      • key_prefix appears at the start of the key (enables time-based prefixing)
-      • all '/' characters are replaced with '.' to prevent nested folders
-      • URL and Vary-based hashes follow afterward for uniqueness
-
-    Key format:
-        "<prefix>:views.decorators.cache.cache_page.<method>.<urlhash>.<varyhash>"
+    Unlike Django's default `_generate_cache_key`, this function:
+      • Places `time_based_prefix` at the start of the key for proper
+        time-based directory structuring in S3.
+      • Replaces all '/' characters with '.' to avoid creating nested
+        S3 folders.
+      • Preserves the rest of Django's key generation logic.
     """
-    ctx = md5(usedforsecurity=False)
-    for header in headerlist:
-        value = request.META.get(header)
-        if value:
-            ctx.update(value.encode())
-
-    url_hash = md5(
-        request.build_absolute_uri().encode("ascii"), usedforsecurity=False
+    raw_key = f"{time_based_prefix}:" + _generate_cache_key(
+        request, method, headerlist, key_prefix
     )
-    raw_key = f"{key_prefix}:views.decorators.cache.cache_page.{method}.{url_hash.hexdigest()}.{ctx.hexdigest()}"
-
-    return _i18n_cache_key_suffix(request, raw_key).replace("/", ".")
+    return raw_key.replace("/", ".")
 
 
-def _generate_cache_header_key_s3_compatible(key_prefix, request):
+def _generate_cache_header_key_s3_compatible(
+    key_prefix: str,
+    request: HttpRequest,
+    time_based_prefix: str,
+) -> str:
     """
-    Generate the S3-compatible header cache key.
+    Generate an S3-compatible cache key for storing the Vary header list.
 
-    Stores the list of headers that affect caching (Vary headers) in a key
-    format compatible with S3ExpressCacheBackend:
-
-      • key_prefix is at the beginning to allow time-based prefixing
-      • '/' characters are replaced with '.' to prevent nested folder creation
-      • the key is otherwise deterministic based on the URL
+    This ensures the key:
+      • Begins with `time_based_prefix` for time-based cache segregation.
+      • Replaces '/' with '.' to prevent nested folders in S3.
+      • Remains deterministic based on the request URL.
     """
-    url_hash = md5(
-        request.build_absolute_uri().encode("ascii"), usedforsecurity=False
+    raw_key = f"{time_based_prefix}:" + _generate_cache_header_key(
+        key_prefix, request
     )
-    raw_key = f"{key_prefix}:views.decorators.cache.cache_header.{url_hash.hexdigest()}"
-    return _i18n_cache_key_suffix(request, raw_key).replace("/", ".")
+    return raw_key.replace("/", ".")
 
 
 def get_cache_key_s3_compatible(
-    request, key_prefix=None, method="GET", cache=None
+    request: HttpRequest,
+    key_prefix: str | None = None,
+    method: str = "GET",
+    cache: BaseCache | None = None,
+    time_based_prefix: str | None = None,
 ):
     """
     Mirrors Django's `get_cache_key` but generates a key compatible with
     S3ExpressCacheBackend by:
 
-      • placing key_prefix at the beginning of the key
+      • placing time_based_prefix at the beginning of the key
       • replacing '/' with '.' to avoid creating nested S3 folders
 
     If there isn't a headerlist stored, return None, indicating that the page
@@ -87,7 +83,9 @@ def get_cache_key_s3_compatible(
     key_prefix = key_prefix or settings.CACHE_MIDDLEWARE_KEY_PREFIX
     cache = cache or caches[settings.CACHE_MIDDLEWARE_ALIAS]
 
-    header_key = _generate_cache_header_key_s3_compatible(key_prefix, request)
+    header_key = _generate_cache_header_key_s3_compatible(
+        key_prefix, request, time_based_prefix
+    )
     headerlist = cache.get(header_key)
     if headerlist is None:
         return None
@@ -98,7 +96,12 @@ def get_cache_key_s3_compatible(
 
 
 def learn_cache_key_s3_compatible(
-    request, response, cache_timeout=None, key_prefix=None, cache=None
+    request: HttpRequest,
+    response: HttpResponse,
+    cache_timeout: int | None = None,
+    key_prefix: str | None = None,
+    cache: BaseCache | None = None,
+    time_based_prefix: str | None = None,
 ):
     """
     Store the list of headers from the response's Vary header and generate
@@ -107,7 +110,7 @@ def learn_cache_key_s3_compatible(
     This mirrors Django's `learn_cache_key` but ensures keys are compatible
     with S3ExpressCacheBackend:
 
-      • key_prefix appears at the start of the key (for time-based prefixing)
+      • time_based_prefix appears at the start of the key.
       • '/' characters are replaced with '.' to prevent nested folder.
       • all other behavior (Vary handling, sorting, i18n suffix) remains
         the same as Django
@@ -116,7 +119,9 @@ def learn_cache_key_s3_compatible(
     cache_timeout = cache_timeout or settings.CACHE_MIDDLEWARE_SECONDS
     cache = cache or caches[settings.CACHE_MIDDLEWARE_ALIAS]
 
-    cache_key = _generate_cache_header_key_s3_compatible(key_prefix, request)
+    cache_key = _generate_cache_header_key_s3_compatible(
+        key_prefix, request, time_based_prefix
+    )
     headerlist = []
     if response.has_header("Vary"):
         is_accept_language_redundant = settings.USE_I18N
@@ -130,7 +135,7 @@ def learn_cache_key_s3_compatible(
     # for the request.build_absolute_uri()
     cache.set(cache_key, headerlist, cache_timeout)
     return _generate_cache_key_s3_compatible(
-        request, request.method, headerlist, key_prefix
+        request, request.method, headerlist, key_prefix, time_based_prefix
     )
 
 
