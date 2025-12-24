@@ -5,7 +5,7 @@ from django.http import HttpResponse
 from django.test import RequestFactory, SimpleTestCase, override_settings
 
 from django_s3_express_cache import S3ExpressCacheBackend
-from django_s3_express_cache.decorator import cache_page
+from django_s3_express_cache.decorators import cache_page
 from django_s3_express_cache.middleware import (
     CacheMiddlewareS3Compatible,
     get_cache_key_s3_compatible,
