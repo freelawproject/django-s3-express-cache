@@ -219,7 +219,7 @@ class CacheMiddlewareS3Compatible(CacheMiddleware):
         """Store the response in cache when appropriate."""
         # If not using S3 backend, fall back to default behavior.
         if not self._is_s3_backend:
-            return super().process_request(request)
+            return super().process_response(request, response)
 
         if not self._should_update_cache(request, response):
             # We don't need to update the cache, just return.
