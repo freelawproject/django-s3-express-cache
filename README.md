@@ -366,6 +366,52 @@ client.set("1-days:persistent_config", {"feature_flag": True}, timeout=None)
 # Raises ValueError
 ```
 
+## Cache Decorator (cache_page)
+
+This library provides an S3-compatible cache decorator that mirrors Django’s built-in
+`django.views.decorators.cache.cache_page`, while automatically handling the time-based key prefixes required for S3 Express lifecycle rules.
+
+This decorator:
+- Computes the correct time_base_prefix from the timeout
+- Passes it into CacheMiddlewareS3Compatible
+- Preserves Django’s default behavior when not using the S3 backend
+
+### Basic usage
+
+Replace Django’s decorator import:
+
+```python
+from django.views.decorators.cache import cache_page
+```
+
+With:
+
+```python
+from django_s3_express_cache.decorators import cache_page
+```
+
+Usage remains the same:
+
+```python
+@cache_page(60 * 60, cache="s3")  # 1 hour
+def my_view(request):
+    ...
+```
+
+Under the hood:
+- The decorator computes a 1-days prefix (since the timeout fits within one day).
+- Keys are stored in S3 under the appropriate lifecycle-managed prefix.
+- Expiration is enforced both via the object header and S3 lifecycle rules.
+
+### Behavior with non-S3 backends
+
+If the view is cached using a non-S3 backend (Redis, Memcached, DB cache, etc.):
+
+- The decorator falls back to Django’s default cache behavior
+- No S3-specific logic or prefixes are applied
+
+This makes the decorator safe to use in mixed cache setups or during gradual migration.
+
 ## Roadmap
 
  - Reserved header fields allow future compression support (zlib/zstd).
