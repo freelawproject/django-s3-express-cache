@@ -1,15 +1,17 @@
 # Change Log
 
+## Future
+
 The following changes are not yet released, but are code complete:
 
-Features:
--
+### Features
+None yet
 
-Changes:
--
+### Changes
+None yet
 
-Fixes:
--
+### Fixes
+None yet
 
 ## Current
 
@@ -18,13 +20,11 @@ Fixes:
 - Adds `CacheMiddlewareS3Compatible`, a drop-in replacement for Django's `CacheMiddleware` that generates S3-compatible cache keys
 - Adds `cache_page` decorator that wraps views with CacheMiddlewareS3Compatible for S3ExpressCacheBackend support.
 
+## Past
+
 **0.1.0 - 2025-09-21**
 
 - First public release of the package.
 - Provides core functionality
 - Adds automated publishing to PyPI via GitHub Actions.
 - Adds workflow to enforce changelog updates on pull requests.
-
-## Past
-
-No past releases yet.
