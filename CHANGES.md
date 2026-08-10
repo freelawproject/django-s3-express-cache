@@ -8,7 +8,7 @@ The following changes are not yet released, but are code complete:
 None yet
 
 ### Changes
-None yet
+- Add a PR template with an AI Disclosure section
 
 ### Fixes
 None yet
