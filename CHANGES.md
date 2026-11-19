@@ -9,6 +9,7 @@ None yet
 
 ### Changes
 - Add a PR template with an AI Disclosure section
+- Publish to PyPI with trusted publishing instead of an API token.
 
 ### Fixes
 None yet
